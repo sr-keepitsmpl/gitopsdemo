@@ -29,21 +29,24 @@ jobs:
         id: branch
         run: echo "name=$(echo '${{ github.ref_name }}' | tr '/' '-')" >> "$GITHUB_OUTPUT"
 
-      # main: auto-bump semantic version (patch) and create a new git tag
+      # main: bump the real version from conventional commits (feat -> minor, fix -> patch) and push the tag
       - name: Bump version
         if: github.ref == 'refs/heads/main'
         id: tag_version
-        uses: anothrNick/github-tag-action@1.71.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          WITH_V: true
-          DEFAULT_BUMP: patch
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          default_bump: patch
 
-      # non-main: reuse the latest released version as-is, no bump
-      - name: Get latest version
+      # non-main: compute the same next version from conventional commits, but don't create/push a tag
+      - name: Preview next version
         if: github.ref != 'refs/heads/main'
-        id: latest_version
-        run: echo "tag=$(git describe --tags --abbrev=0 2>/dev/null || echo v0.0.0)" >> "$GITHUB_OUTPUT"
+        id: tag_version_dry
+        uses: mathieudutour/github-tag-action@v6.2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          default_bump: patch
+          dry_run: true
 
       - name: Determine image tags
         id: image_tags
@@ -51,7 +54,7 @@ jobs:
           if [ "${{ github.ref }}" = "refs/heads/main" ]; then
             echo "tags=${REGISTRY}/${IMAGE_NAME}:${{ steps.tag_version.outputs.new_tag }},${REGISTRY}/${IMAGE_NAME}:latest" >> "$GITHUB_OUTPUT"
           else
-            echo "tags=${REGISTRY}/${IMAGE_NAME}:${{ steps.latest_version.outputs.tag }}-${{ steps.branch.outputs.name }}-${{ steps.sha.outputs.short }}" >> "$GITHUB_OUTPUT"
+            echo "tags=${REGISTRY}/${IMAGE_NAME}:${{ steps.tag_version_dry.outputs.new_tag }}-${{ steps.branch.outputs.name }}-${{ steps.sha.outputs.short }}" >> "$GITHUB_OUTPUT"
           fi
         env:
           REGISTRY: ${{ env.REGISTRY }}
