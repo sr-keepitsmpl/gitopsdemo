@@ -1,5 +1,12 @@
 name: Build and Push Docker Image
 
+run-name: >-
+  ${{
+    (startsWith(github.event.head_commit.message, 'fix') && 'fix')
+    || (startsWith(github.event.head_commit.message, 'feat') && 'feat')
+    || 'build'
+  }} [${{ github.ref_name }}] [#${{ github.run_number }}] ${{ github.event.head_commit.message }}
+
 on:
   push:
     branches: [main]
