@@ -1,2 +1,2 @@
 FROM alpine:latest
-CMD ["echo", "Hello from Alpine! From GitHub Actions!"]
+CMD ["echo", "Hello from Alpine! Build from branch!"]
