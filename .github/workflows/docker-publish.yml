@@ -39,13 +39,19 @@ jobs:
           WITH_V: true
           DEFAULT_BUMP: patch
 
+      # non-main: reuse the latest released version as-is, no bump
+      - name: Get latest version
+        if: github.ref != 'refs/heads/main'
+        id: latest_version
+        run: echo "tag=$(git describe --tags --abbrev=0 2>/dev/null || echo v0.0.0)" >> "$GITHUB_OUTPUT"
+
       - name: Determine image tags
         id: image_tags
         run: |
           if [ "${{ github.ref }}" = "refs/heads/main" ]; then
             echo "tags=${REGISTRY}/${IMAGE_NAME}:${{ steps.tag_version.outputs.new_tag }},${REGISTRY}/${IMAGE_NAME}:latest" >> "$GITHUB_OUTPUT"
           else
-            echo "tags=${REGISTRY}/${IMAGE_NAME}:${{ steps.branch.outputs.name }}-${{ steps.sha.outputs.short }}" >> "$GITHUB_OUTPUT"
+            echo "tags=${REGISTRY}/${IMAGE_NAME}:${{ steps.latest_version.outputs.tag }}-${{ steps.branch.outputs.name }}-${{ steps.sha.outputs.short }}" >> "$GITHUB_OUTPUT"
           fi
         env:
           REGISTRY: ${{ env.REGISTRY }}
