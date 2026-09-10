@@ -3,6 +3,7 @@ name: Build and Push Docker Image
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
@@ -12,11 +13,43 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Short SHA
+        id: sha
+        run: echo "short=$(echo "${GITHUB_SHA}" | cut -c1-7)" >> "$GITHUB_OUTPUT"
+
+      - name: Sanitize branch name
+        id: branch
+        run: echo "name=$(echo '${{ github.ref_name }}' | tr '/' '-')" >> "$GITHUB_OUTPUT"
+
+      # main: auto-bump semantic version (patch) and create a new git tag
+      - name: Bump version
+        if: github.ref == 'refs/heads/main'
+        id: tag_version
+        uses: anothrNick/github-tag-action@1.71.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WITH_V: true
+          DEFAULT_BUMP: patch
+
+      - name: Determine image tags
+        id: image_tags
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "tags=${REGISTRY}/${IMAGE_NAME}:${{ steps.tag_version.outputs.new_tag }},${REGISTRY}/${IMAGE_NAME}:latest" >> "$GITHUB_OUTPUT"
+          else
+            echo "tags=${REGISTRY}/${IMAGE_NAME}:${{ steps.branch.outputs.name }}-${{ steps.sha.outputs.short }}" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          REGISTRY: ${{ env.REGISTRY }}
+          IMAGE_NAME: ${{ env.IMAGE_NAME }}
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -30,4 +63,4 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest,${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          tags: ${{ steps.image_tags.outputs.tags }}
