@@ -47,7 +47,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           default_bump: patch
           dry_run: true
-          release_branches: '*'
+          release_branches: '.*'
 
       - name: Determine image tags
         id: image_tags
